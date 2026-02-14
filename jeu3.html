@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🕹️ VF : Vrai ou Faux Rapide</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: Arial,sans-serif; background:#f0f0f0; color:#333; }
+header { background-color:#FF5722; padding:10px 20px; display:flex; justify-content:space-between; align-items:center; }
+header h1 { color:white; font-size:24px; }
+nav { display:flex; gap:20px; }
+nav a { color:white; text-decoration:none; font-weight:bold; transition:.3s; }
+nav a:hover { color:#ffeb3b; }
+.menu-toggle { display:none; flex-direction:column; cursor:pointer; }
+.menu-toggle div { width:25px; height:3px; background:white; margin:4px 0; }
+@media(max-width:768px){ nav{position:absolute; top:60px; left:0;width:100%; flex-direction:column; background:#FF5722; display:none;} nav.active{display:flex;} .menu-toggle{display:flex;} }
+
+.score { color:white; font-weight:bold; }
+main { padding:20px; }
+.game-container { background:white; padding:20px; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,.1); max-width:500px; margin:20px auto; text-align:center; }
+button { padding:10px 20px; font-size:16px; cursor:pointer; background:#FF5722; color:white; border:none; border-radius:5px; transition:.3s; }
+button:hover { background:#E64A19; }
+p { margin-top:15px; font-size:18px; }
+#timer { font-weight:bold; color:red; font-size:18px; margin-top:10px; }
+.instructions { background:#FFE0B2; padding:15px; border-radius:10px; margin-bottom:15px; text-align:left; }
+.control-buttons { display:flex; justify-content:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Jeu 3 : Vrai ou Faux Rapide</h1>
+    <div class="score" id="score">Points: 0</div>
+    <div class="menu-toggle" id="menu-toggle"><div></div><div></div><div></div></div>
+    <nav id="nav-menu">
+        <a href="index.html">🛖</a>
+        <a href="parametres.html">⚙️</a>
+        <a href="jeu1.html">🎲 NM</a>
+        <a href="jeu2.html">🧩 CM</a>
+        <a href="jeu3.html">🕹️ VF</a>
+    </nav>
+</header>
+
+<main>
+<div class="game-container">
+
+    <!-- Bouton Quitter -->
+    <div class="control-buttons">
+        <button id="quitBtn">Quitter ce jeu</button>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions" id="instructions">
+        <h3>Comment jouer :</h3>
+        <p>Vous aurez 6 affirmations mathématiques ou logiques. Cliquez sur Vrai ou Faux avant la fin du chrono :</p>
+        <ul style="margin-left:20px;">
+            <li>4 bonnes réponses → 5 points</li>
+            <li>5 bonnes réponses → 8 points</li>
+            <li>6 bonnes réponses → 10 points</li>
+        </ul>
+        <button id="startBtn">Commencer le jeu</button>
+    </div>
+
+    <!-- Zone de jeu -->
+    <div id="gameArea" style="display:none;">
+        <p id="question" style="font-weight:bold;"></p>
+        <div style="margin-top:10px;">
+            <button id="trueBtn">Vrai</button>
+            <button id="falseBtn">Faux</button>
+        </div>
+        <p id="feedback"></p>
+        <p id="timer"></p>
+        <button id="nextBtn" style="display:none; margin-top:10px;">Suivant</button>
+        <button id="restartBtn" style="display:none; margin-top:10px;">Recommencer</button>
+        <p id="stats"></p>
+    </div>
+
+</div>
+</main>
+
+<script>
+// Menu mobile
+const toggle = document.getElementById('menu-toggle');
+const nav = document.getElementById('nav-menu');
+toggle.addEventListener('click', ()=>nav.classList.toggle('active'));
+
+// Vérifier utilisateur connecté
+let currentUser = localStorage.getItem('currentUser');
+if(!currentUser){
+    alert("Vous devez être connecté pour jouer !");
+    window.location.href='login.html';
+}
+
+// Charger utilisateurs et score
+let users = JSON.parse(localStorage.getItem('users')) || {};
+let score = users[currentUser]?.score || 0;
+const scoreEl = document.getElementById('score');
+scoreEl.textContent = 'Points: '+score;
+
+// Quitter jeu
+document.getElementById('quitBtn').addEventListener('click', ()=>{
+    window.location.href='index.html';
+});
+
+// Variables jeu
+let totalQuestions = 6;
+let currentQuestion = 0;
+let correctAnswers = 0;
+let timer;
+let timeLeft = 0;
+let currentAnswer = null;
+
+const startBtn = document.getElementById('startBtn');
+const instructions = document.getElementById('instructions');
+const gameArea = document.getElementById('gameArea');
+const questionEl = document.getElementById('question');
+const trueBtn = document.getElementById('trueBtn');
+const falseBtn = document.getElementById('falseBtn');
+const feedbackEl = document.getElementById('feedback');
+const restartBtn = document.getElementById('restartBtn');
+const nextBtn = document.getElementById('nextBtn');
+const statsEl = document.getElementById('stats');
+const timerEl = document.getElementById('timer');
+
+// Générer affirmation
+function getRandomStatement(){
+    const operations = ['+','-','*','/'];
+    const op = operations[Math.floor(Math.random()*operations.length)];
+    let num1, num2, result, statement, isTrue;
+
+    if(op==='+'){
+        num1=Math.floor(Math.random()*50)+10;
+        num2=Math.floor(Math.random()*50)+10;
+        result = num1+num2;
+        isTrue = Math.random()>0.5;
+        statement = isTrue ? `${num1} + ${num2} = ${result}` : `${num1} + ${num2} = ${result+Math.floor(Math.random()*5)+1}`;
+        timeLeft = 3;
+    } else if(op==='-'){
+        num1=Math.floor(Math.random()*50)+20;
+        num2=Math.floor(Math.random()*20)+10;
+        result=num1-num2;
+        isTrue = Math.random()>0.5;
+        statement = isTrue ? `${num1} - ${num2} = ${result}` : `${num1} - ${num2} = ${result+Math.floor(Math.random()*5)+1}`;
+        timeLeft = 3;
+    } else if(op==='*'){
+        num1=Math.floor(Math.random()*12)+2;
+        num2=Math.floor(Math.random()*12)+2;
+        result=num1*num2;
+        isTrue = Math.random()>0.5;
+        statement = isTrue ? `${num1} * ${num2} = ${result}` : `${num1} * ${num2} = ${result+Math.floor(Math.random()*5)+1}`;
+        timeLeft = 5;
+    } else if(op==='/'){
+        num2=Math.floor(Math.random()*10)+2;
+        result=Math.floor(Math.random()*12)+2;
+        num1=result*num2;
+        isTrue = Math.random()>0.5;
+        statement = isTrue ? `${num1} / ${num2} = ${result}` : `${num1} / ${num2} = ${result+Math.floor(Math.random()*2)+1}`;
+        timeLeft = 5;
+    }
+
+    currentAnswer=isTrue;
+    return statement;
+}
+
+// Démarrer jeu
+startBtn.addEventListener('click', ()=>{
+    instructions.style.display='none';
+    gameArea.style.display='block';
+    nextQuestion();
+});
+
+// Timer
+function startTimer(){
+    timerEl.textContent=`⏱ Temps restant: ${timeLeft}s`;
+    clearInterval(timer);
+    timer = setInterval(()=>{
+        timeLeft--;
+        timerEl.textContent=`⏱ Temps restant: ${timeLeft}s`;
+        if(timeLeft<=0){
+            clearInterval(timer);
+            feedbackEl.textContent=`⏱ Temps écoulé !`;
+            endQuestion();
+        }
+    },1000);
+}
+
+// Prochaine question
+function nextQuestion(){
+    feedbackEl.textContent='';
+    statsEl.textContent=`Question ${currentQuestion+1} / ${totalQuestions}`;
+    questionEl.textContent = getRandomStatement();
+    trueBtn.disabled=false;
+    falseBtn.disabled=false;
+    nextBtn.style.display='none';
+    startTimer();
+}
+
+// Fin question
+function endQuestion(){
+    trueBtn.disabled=true;
+    falseBtn.disabled=true;
+    nextBtn.style.display='inline-block';
+    currentQuestion++;
+}
+
+// Validation réponse
+trueBtn.addEventListener('click', ()=>{
+    clearInterval(timer);
+    if(currentAnswer===true){ correctAnswers++; feedbackEl.textContent='✅ Correct !'; }
+    else{ feedbackEl.textContent='❌ Faux !'; }
+    endQuestion();
+});
+falseBtn.addEventListener('click', ()=>{
+    clearInterval(timer);
+    if(currentAnswer===false){ correctAnswers++; feedbackEl.textContent='✅ Correct !'; }
+    else{ feedbackEl.textContent='❌ Faux !'; }
+    endQuestion();
+});
+
+// Suivant
+nextBtn.addEventListener('click', ()=>{
+    if(currentQuestion<totalQuestions) nextQuestion();
+    else endGame();
+});
+
+// Fin jeu
+function endGame(){
+    nextBtn.style.display='none';
+    restartBtn.style.display='inline-block';
+    timerEl.textContent='';
+    let pointsEarned=0;
+    if(correctAnswers===4) pointsEarned=5;
+    else if(correctAnswers===5) pointsEarned=8;
+    else if(correctAnswers===6) pointsEarned=10;
+
+    if(pointsEarned>0){
+        feedbackEl.textContent=`🎉 Vous avez réussi ${correctAnswers} sur 6 ! Vous gagnez ${pointsEarned} points !`;
+        addPoints(pointsEarned);
+    } else {
+        feedbackEl.textContent=`😢 Vous avez réussi ${correctAnswers} sur 6. Pas de points cette fois.`;
+    }
+}
+
+// Recommencer
+restartBtn.addEventListener('click', ()=>{
+    totalQuestions=6;
+    currentQuestion=0;
+    correctAnswers=0;
+    restartBtn.style.display='none';
+    nextQuestion();
+});
+
+// Ajouter points utilisateur et historique
+function addPoints(points){
+    score += points;
+    users[currentUser].score = score;
+
+    // Historique
+    let history = users[currentUser].history || [];
+    history.push({ date: new Date().toLocaleString(), points: points });
+    users[currentUser].history = history;
+
+    localStorage.setItem('users', JSON.stringify(users));
+    scoreEl.textContent='Points: '+score;
+}
+</script>
+
+</body>
+</html>

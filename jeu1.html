@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎲 NM : Nombre Mystère</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: Arial,sans-serif; background:#f0f0f0; color:#333; }
+
+header { background:#4CAF50; padding:10px 20px; display:flex; justify-content:space-between; align-items:center; position:relative; }
+header h1 { color:white; font-size:24px; }
+nav { display:flex; gap:20px; }
+nav a { color:white; text-decoration:none; font-weight:bold; transition:0.3s; }
+nav a:hover { color:#ffeb3b; }
+.menu-toggle { display:none; flex-direction:column; cursor:pointer; }
+.menu-toggle div { width:25px; height:3px; background:white; margin:4px 0; }
+@media(max-width:768px){
+    nav { position:absolute; top:60px; left:0; width:100%; flex-direction:column; background:#4CAF50; display:none; }
+    nav.active { display:flex; }
+    .menu-toggle { display:flex; }
+}
+
+.score { color:white; font-weight:bold; }
+main { padding:20px; }
+
+.game-container { background:white; padding:20px; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,.1); max-width:500px; margin:20px auto; text-align:center; }
+
+input[type="number"] { padding:10px; width:80px; font-size:16px; margin-right:10px; }
+button { padding:10px 20px; font-size:16px; cursor:pointer; background:#4CAF50; color:white; border:none; border-radius:5px; transition:.3s; }
+button:hover { background:#45a049; }
+p { margin-top:15px; font-size:18px; }
+
+.instructions { background:#e3f2fd; padding:15px; border-radius:10px; margin-bottom:15px; text-align:left; display:none; }
+.instructions ul { margin-left:20px; }
+
+.control-buttons { display:flex; justify-content:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>🎲 NM : Nombre Mystère</h1>
+    <div class="score" id="score">Points: 0</div>
+    <div class="menu-toggle" id="menu-toggle">
+        <div></div><div></div><div></div>
+    </div>
+    <nav id="nav-menu">
+        <a href="index.html">🛖</a>
+        <a href="parametres.html">⚙️</a>
+        <a href="jeu1.html">🎲 NM</a>
+        <a href="jeu2.html">🧩 CM</a>
+        <a href="jeu3.html">🕹️ VF</a>
+    </nav>
+</header>
+
+<main>
+    <div class="game-container">
+        <!-- Boutons Contrôle -->
+        <div class="control-buttons">
+            <button id="showInstrBtn">Afficher / Masquer les instructions</button>
+            <button id="quitBtn">Quitter ce jeu</button>
+        </div>
+
+        <!-- Instructions déroulantes -->
+        <div class="instructions" id="instructions">
+            <h3>Comment jouer :</h3>
+            <p>Le but est de deviner le nombre choisi par l'ordinateur entre <strong>1</strong> et <strong>100</strong>.</p>
+            <ul>
+                <li>Vous avez <strong>6 essais</strong> pour trouver le nombre.</li>
+                <li>Après chaque tentative, vous recevrez un indice : "Plus grand" ou "Plus petit".</li>
+                <li>Si vous trouvez le nombre avant la fin des essais, vous gagnez <strong>10 points</strong>.</li>
+            </ul>
+        </div>
+
+        <!-- Zone du jeu -->
+        <div id="gameArea">
+            <p>Devinez un nombre entre <strong>1</strong> et <strong>100</strong></p>
+            <input type="number" id="userGuess" min="1" max="100">
+            <button id="guessBtn">Deviner</button>
+            <p id="result"></p>
+            <button id="restartBtn" style="display:none; margin-top:10px;">Recommencer</button>
+        </div>
+    </div>
+</main>
+
+<script>
+// Menu mobile
+const toggle = document.getElementById('menu-toggle');
+const nav = document.getElementById('nav-menu');
+toggle.addEventListener('click', ()=>nav.classList.toggle('active'));
+
+// Vérifier utilisateur connecté
+let currentUser = localStorage.getItem('currentUser');
+if(!currentUser){
+    alert("Vous devez être connecté pour jouer !");
+    window.location.href='login.html';
+}
+
+// Charger utilisateurs et score
+let users = JSON.parse(localStorage.getItem('users')) || {};
+let score = users[currentUser]?.score || 0;
+const scoreEl = document.getElementById('score');
+scoreEl.textContent = 'Points: '+score;
+
+// DOM
+const showInstrBtn = document.getElementById('showInstrBtn');
+const quitBtn = document.getElementById('quitBtn');
+const instructionsDiv = document.getElementById('instructions');
+const guessBtn = document.getElementById('guessBtn');
+const restartBtn = document.getElementById('restartBtn');
+const userInput = document.getElementById('userGuess');
+const resultEl = document.getElementById('result');
+
+// Toggle instructions
+showInstrBtn.addEventListener('click', ()=>{
+    instructionsDiv.style.display = (instructionsDiv.style.display==='none'||instructionsDiv.style.display==='') ? 'block' : 'none';
+});
+
+// Quitter le jeu
+quitBtn.addEventListener('click', ()=>{
+    window.location.href = 'index.html';
+});
+
+// Variables du jeu
+let randomNumber;
+let attemptsLeft;
+
+// Initialiser la partie
+function initGame(){
+    randomNumber = Math.floor(Math.random()*100)+1;
+    attemptsLeft = 6;
+    resultEl.textContent='';
+    guessBtn.style.display='inline-block';
+    restartBtn.style.display='none';
+    userInput.value='';
+    userInput.focus();
+}
+
+// Démarrage
+initGame();
+
+// Bouton Deviner
+guessBtn.addEventListener('click', ()=>{
+    const guess = parseInt(userInput.value);
+    if(!guess || guess<1 || guess>100){
+        resultEl.textContent="Veuillez entrer un nombre valide entre 1 et 100.";
+        return;
+    }
+
+    attemptsLeft--;
+
+    if(guess < randomNumber){
+        resultEl.textContent=`📈 Plus grand ! Il vous reste ${attemptsLeft} essais.`;
+    } else if(guess > randomNumber){
+        resultEl.textContent=`📉 Plus petit ! Il vous reste ${attemptsLeft} essais.`;
+    } else {
+        resultEl.textContent=`🎉 Gagné ! +10 points`;
+        addPoints(10);
+        guessBtn.style.display='none';
+        restartBtn.style.display='inline-block';
+        return;
+    }
+
+    if(attemptsLeft <= 0){
+        resultEl.textContent=`❌ Vous avez épuisé vos 6 essais ! Le nombre était ${randomNumber}.`;
+        guessBtn.style.display='none';
+        restartBtn.style.display='inline-block';
+    }
+
+    userInput.value='';
+    userInput.focus();
+});
+
+// Bouton Recommencer
+restartBtn.addEventListener('click', ()=>{
+    initGame();
+});
+
+// Ajouter des points et historique pour l'utilisateur connecté
+function addPoints(points){
+    score += points;
+    users[currentUser].score = score;
+
+    // Historique
+    let history = users[currentUser].history || [];
+    history.push({ date: new Date().toLocaleString(), points: points });
+    users[currentUser].history = history;
+
+    localStorage.setItem('users', JSON.stringify(users));
+    scoreEl.textContent='Points: '+score;
+}
+</script>
+
+</body>
+</html>

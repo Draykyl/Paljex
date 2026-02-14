@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paramètres</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;background:#f0f0f0;color:#333;}
+header{background:#4CAF50;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;}
+header h1{color:white;font-size:24px;}
+nav{display:flex;gap:20px;}
+nav a{color:white;text-decoration:none;font-weight:bold;transition:.3s;}
+nav a:hover{color:#ffeb3b;}
+.menu-toggle{display:none;flex-direction:column;cursor:pointer;}
+.menu-toggle div{width:25px;height:3px;background:white;margin:4px 0;}
+@media(max-width:768px){nav{position:absolute;top:60px;left:0;width:100%;flex-direction:column;background:#4CAF50;display:none;}nav.active{display:flex;}.menu-toggle{display:flex;}}
+main{padding:20px;}
+.setting-section{background:white;padding:20px;margin:10px 0;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,.1);}
+button{padding:10px 20px;font-size:16px;border:none;border-radius:5px;background:#4CAF50;color:white;cursor:pointer;margin-top:10px;}
+button:hover{background:#45a049;}
+.danger{background:#e53935;}
+.danger:hover{background:#c62828;}
+.hidden{display:none;}
+</style>
+</head>
+<body>
+
+<header>
+<h1>Paramètres</h1>
+<div class="menu-toggle" id="menu-toggle"><div></div><div></div><div></div></div>
+<nav id="nav-menu">
+<a href="index.html">🛖</a>
+<a href="parametres.html">⚙️</a>
+</nav>
+</header>
+
+<main>
+<h3>Compte : <span id="userDisplay"></span></h3>
+
+<div class="setting-section">
+    <h4>Changer le pseudo</h4>
+    <button id="changeUsernameBtn">Changer de pseudo</button>
+</div>
+
+<div class="setting-section">
+    <h4>Mot de passe</h4>
+    <button id="changePasswordBtn">Changer le mot de passe</button>
+</div>
+
+<div class="setting-section">
+    <h4>Historique</h4>
+    <button id="toggleHistoryBtn">Voir / Masquer l'historique</button>
+    <ul id="historyList" class="hidden"></ul>
+    <button id="clearHistoryBtn">Supprimer l'historique</button>
+</div>
+
+<div class="setting-section">
+    <h4>Session</h4>
+    <button id="logoutBtn">Se déconnecter</button>
+</div>
+
+<div class="setting-section">
+    <h4>Danger zone</h4>
+    <button id="deleteAccountBtn" class="danger">Supprimer votre compte</button>
+</div>
+
+</main>
+
+<script>
+// Menu mobile
+const toggle = document.getElementById('menu-toggle');
+const nav = document.getElementById('nav-menu');
+toggle.addEventListener('click', ()=>nav.classList.toggle('active'));
+
+// Vérif connexion
+let currentUser = localStorage.getItem('currentUser');
+let users = JSON.parse(localStorage.getItem('users')) || {};
+if(!currentUser || !users[currentUser]){
+    alert("Vous devez être connecté.");
+    window.location.href = 'login.html';
+}
+
+document.getElementById('userDisplay').textContent = currentUser;
+
+// Changer pseudo
+document.getElementById('changeUsernameBtn').addEventListener('click', ()=>{
+    let newName = prompt("Nouveau pseudo :");
+    if(!newName || users[newName]){
+        alert("Pseudo invalide ou déjà pris !");
+        return;
+    }
+    users[newName] = users[currentUser];
+    delete users[currentUser];
+    localStorage.setItem('users', JSON.stringify(users));
+    localStorage.setItem('currentUser', newName);
+    alert("Pseudo changé !");
+    location.reload();
+});
+
+// Changer mot de passe
+document.getElementById('changePasswordBtn').addEventListener('click', ()=>{
+    let oldPwd = prompt("Mot de passe actuel :");
+    if(oldPwd !== users[currentUser].password){
+        alert("Mot de passe incorrect !");
+        return;
+    }
+    let newPwd = prompt("Nouveau mot de passe :");
+    if(newPwd){
+        users[currentUser].password = newPwd;
+        localStorage.setItem('users', JSON.stringify(users));
+        alert("Mot de passe mis à jour !");
+    }
+});
+
+// Historique toggle
+const historyList = document.getElementById('historyList');
+document.getElementById('toggleHistoryBtn').addEventListener('click', ()=>{
+    if(historyList.classList.contains('hidden')){
+        historyList.innerHTML='';
+        (users[currentUser].history || []).forEach(h=>{
+            let li=document.createElement('li');
+            li.textContent = `${h.date} : +${h.points} points`;
+            historyList.appendChild(li);
+        });
+        historyList.classList.remove('hidden');
+    } else {
+        historyList.classList.add('hidden');
+    }
+});
+
+// Clear historique
+document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
+    if(confirm("Supprimer l'historique ?")){
+        users[currentUser].history = [];
+        localStorage.setItem('users', JSON.stringify(users));
+        historyList.innerHTML='';
+        alert("Historique supprimé.");
+    }
+});
+
+// Déconnexion
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+    localStorage.removeItem('currentUser');
+    window.location.href='login.html';
+});
+
+// Supprimer compte
+document.getElementById('deleteAccountBtn').addEventListener('click', ()=>{
+    if(confirm("⚠️ Supprimer définitivement le compte ? Cette action est irréversible !")){
+        delete users[currentUser];
+        localStorage.setItem('users', JSON.stringify(users));
+        localStorage.removeItem('currentUser');
+        alert("Compte supprimé.");
+        window.location.href='login.html';
+    }
+});
+</script>
+
+</body>
+</html>
